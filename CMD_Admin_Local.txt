@@ -1,0 +1,5 @@
+cd C:\Program Files (x86)\Microsoft Dynamics 365 Business Central\130\RoleTailored Client
+
+finsql.exe Command=ExportToNewSyntax, File="C:\Users\alexef\Documents\ALF_Batch_Update_Item_Attributes\Convert_Objects\Objects_on-prem_NewSyntax_NEW\REP60201.txt", Database="Demo Database NAV (13-0)", ServerName="RU-ALEXEF08\BC130", Filter=Type=report;ID=60201
+
+txt2al.exe --source="C:\Users\alexef\Documents\ALF_Batch_Update_Item_Attributes\Convert_Objects\Objects_on-prem_NewSyntax_NEW" --target="C:\Users\alexef\Documents\ALF_Batch_Update_Item_Attributes\Convert_Objects\Objects_AL" --rename --type=Report --extensionStartId=60201

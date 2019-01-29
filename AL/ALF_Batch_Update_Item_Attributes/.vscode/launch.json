@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "al",
+            "request": "launch",
+            "name": "Publish",
+            "tenant": "M365B348078.onmicrosoft.com",      
+            //"breakOnError": true,
+            //"name": "Your own server", //use Azure template from http://aka.ms/BCSandboxAzure",
+            //"server": "https://alexefmodernnav.northeurope.cloudapp.azure.com",
+            //"serverInstance": "NAV",
+            //"tenant": "",         
+            //"authentication": "UserPassword",            
+            //"startupObjectId": 22,
+            //"startupObjectType": "Page",
+            "schemaUpdateMode": "Recreate",
+        }
+    ]
+}

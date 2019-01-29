@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
+  <file datatype="xml" source-language="en-US" target-language="en-US" original="Please update this value">
+    <body>
+      <group id="body">
+        <trans-unit id="Report 2089969766 - NamedType 2214306770" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Copy From Item should not be empty.</source>
+          <target>Copy From Item should not be empty.</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - NamedType TextEmptyCopyFromItem</note>
+        </trans-unit>
+        <trans-unit id="Report 2089969766 - NamedType 1381950852" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Copy To Items is empty, as result system will update all items. Continue?</source>
+          <target>Copy To Items is empty, as result system will update all items. Continue?</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - NamedType TextEmptyCopyToItems</note>
+        </trans-unit>
+        <trans-unit id="Report 2089969766 - NamedType 4101962809" size-unit="char" translate="yes" xml:space="preserve">
+          <source>System will insert/update item attributes for %1 items. Continue?</source>
+          <target>System will insert/update item attributes for %1 items. Continue?</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - NamedType TextConfirm</note>
+        </trans-unit>
+      </group>
+    </body>
+  </file>
+</xliff>

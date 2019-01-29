@@ -1,0 +1,129 @@
+OBJECT Report 60201 ALF_Batch_Update_Item_Attribut
+{
+  OBJECT-PROPERTIES
+  {
+    Date=20190129D;
+    Time=100229.637T;
+    Modified=true;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    ApplicationArea=#All;
+    ProcessingOnly=true;
+    OnPreReport=BEGIN
+                  if CopyFromItem = '' then begin
+                    Message(TextEmptyCopyFromItem);
+                    CurrReport.Quit;
+                  end;
+
+                  if CopyToItems = '' then begin
+                    if not Confirm(TextEmptyCopyToItems,false) then CurrReport.Quit;
+                  end;
+
+                  if not Confirm(TextConfirm,false,NumberItems) then CurrReport.Quit;
+                END;
+
+    UsageCategory=ReportsAndAnalysis;
+  }
+  DATASET
+  {
+    { 1   ;    ;DataItem;Item                ;
+               DataItemTable=Item;
+               DataItemTableView=SORTING("No.");
+               OnAfterGetRecord=BEGIN
+                                    FromItemAttributeValueMapping.Reset;
+                                    FromItemAttributeValueMapping.SetRange("Table ID",DATABASE::Item);
+                                    FromItemAttributeValueMapping.SetRange("No.",CopyFromItem);
+                                    if FromItemAttributeValueMapping.FindSet then begin
+                                      repeat
+                                        ExistedItemAttributeValueMapping.Reset;
+                                        ExistedItemAttributeValueMapping.SetRange("Table ID",DATABASE::Item);
+                                        ExistedItemAttributeValueMapping.SetRange("No.",Item."No.");
+                                        ExistedItemAttributeValueMapping.SetRange("Item Attribute ID",FromItemAttributeValueMapping."Item Attribute ID");
+                                        if ExistedItemAttributeValueMapping.FindFirst then begin
+                                          ExistedItemAttributeValueMapping."Item Attribute Value ID" := FromItemAttributeValueMapping."Item Attribute Value ID";
+                                          ExistedItemAttributeValueMapping.Modify;
+                                        end else begin
+                                          ToItemAttributeValueMapping.Init;
+                                          ToItemAttributeValueMapping.TransferFields(FromItemAttributeValueMapping);
+                                          ToItemAttributeValueMapping."No." := Item."No.";
+                                          ToItemAttributeValueMapping.Insert;
+                                        end;
+                                      until FromItemAttributeValueMapping.Next = 0;
+                                    end;
+                                END;
+                                 }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      OnOpenPage=BEGIN
+                   CopyToItems := Item.GetFilters;
+                   NumberItems := Format(Item.Count);
+                 END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  Name=ContentArea;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Field     ;
+                  Name=CopyFromItem;
+                  ApplicationArea=#All;
+                  SourceExpr=CopyFromItem;
+                  OnValidate=BEGIN
+                               MyItem.Get(CopyFromItem);
+                             END;
+
+                  OnLookup=BEGIN
+                             if PAGE.RunModal(0,MyItem) = ACTION::LookupOK then begin
+                                   Text := MyItem."No.";
+                                   exit(true);
+                             end;
+                           END;
+                            }
+
+      { 3   ;1   ;Field     ;
+                  Name=CopyToItems;
+                  ApplicationArea=#All;
+                  SourceExpr=CopyToItems;
+                  Editable=false }
+
+      { 4   ;1   ;Field     ;
+                  Name=NumberItems;
+                  ApplicationArea=#All;
+                  SourceExpr=NumberItems;
+                  Editable=false }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      CopyFromItem@1000 : Code[20];
+      CopyToItems@1001 : Text;
+      MyItem@1002 : Record Item;
+      FromItemAttributeValueMapping@1003 : Record "Item Attribute Value Mapping";
+      ToItemAttributeValueMapping@1004 : Record "Item Attribute Value Mapping";
+      ExistedItemAttributeValueMapping@1005 : Record "Item Attribute Value Mapping";
+      TextEmptyCopyFromItem@1006 : TextConst 'ENU=Copy From Item should not be empty.';
+      TextEmptyCopyToItems@1007 : TextConst 'ENU=Copy To Items is empty, as result system will update all items. Continue?';
+      NumberItems@1008 : Text;
+      TextConfirm@1009 : TextConst 'ENU=System will insert/update item attributes for %1 items. Continue?';
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

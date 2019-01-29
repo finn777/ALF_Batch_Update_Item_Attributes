@@ -1,0 +1,64 @@
+OBJECT Codeunit 50000 Add Items
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28.01.19;
+    Time=16:32:03;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+            Item.RESET;
+            Item.SETRANGE("No.",'1896-S');
+            Item2.COPY(Item);
+            ItemAttributeValueMapping."Table ID" := 27;
+            ItemAttributeValueMapping."Item Attribute ID" := 1;
+
+
+            FOR i := 1 TO 3000  DO BEGIN // add 3000 items
+              Item2."No." := FORMAT(1000000+i);
+              Item2.INSERT;
+              ItemAttributeValueMapping."No." := FORMAT(1000000+i);
+
+              IF ((i MOD 2) = 0)  THEN BEGIN
+                ItemAttributeValueMapping."Item Attribute Value ID":= 8; // Black
+              END ELSE
+                ItemAttributeValueMapping."Item Attribute Value ID":= 9; // White
+
+              ItemAttributeValueMapping.INSERT;
+            END;
+
+            FOR i := 1 TO 3000  DO BEGIN // add 3000 items
+              Item2."No." := FORMAT(2000000+i);
+              Item2.INSERT;
+              ItemAttributeValueMapping."No." := FORMAT(2000000+i);
+
+              IF ((i MOD 2) = 0)  THEN BEGIN
+                ItemAttributeValueMapping."Item Attribute Value ID":= 8; // Black
+              END ELSE
+                ItemAttributeValueMapping."Item Attribute Value ID":= 9; // White
+
+              ItemAttributeValueMapping.INSERT;
+            END;
+
+
+            COMMIT;
+            MESSAGE('OK');
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Item@1000 : Record 27;
+      Item2@1001 : Record 27;
+      i@1002 : Integer;
+      ItemAttributeValueMapping@1003 : Record 7505;
+
+    BEGIN
+    END.
+  }
+}
+

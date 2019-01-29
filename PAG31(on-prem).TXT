@@ -1,0 +1,1918 @@
+OBJECT Page 31 Item List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28.01.19;
+    Time=16:56:41;
+    Modified=Yes;
+    Version List=NAVW113.03;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Items;
+    ApplicationArea=#Basic,#Suite,#Assembly,#Service;
+    SourceTable=Table27;
+    PageType=List;
+    UsageCategory=Lists;
+    CardPageID=Item Card;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Item,History,Special Prices & Discounts,Request Approval,Periodic Activities,Inventory,Attributes;
+    OnInit=BEGIN
+             CurrPage."Power BI Report FactBox".PAGE.InitFactBox(CurrPage.OBJECTID(FALSE),CurrPage.CAPTION,PowerBIVisible);
+           END;
+
+    OnOpenPage=VAR
+                 SocialListeningSetup@1002 : Record 870;
+                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                 ClientTypeManagement@1001 : Codeunit 4;
+               BEGIN
+                 CRMIntegrationEnabled := CRMIntegrationManagement.IsCRMIntegrationEnabled;
+                 WITH SocialListeningSetup DO
+                   SocialListeningSetupVisible := GET AND "Show on Customers" AND "Accept License Agreement" AND ("Solution ID" <> '');
+                 IsFoundationEnabled := ApplicationAreaMgmtFacade.IsFoundationEnabled;
+                 SetWorkflowManagementEnabledState;
+                 IsOnPhone := ClientTypeManagement.IsClientType(CLIENTTYPE::Phone);
+               END;
+
+    OnFindRecord=VAR
+                   Found@1000 : Boolean;
+                 BEGIN
+                   IF RunOnTempRec THEN BEGIN
+                     TempItemFilteredFromAttributes.COPY(Rec);
+                     Found := TempItemFilteredFromAttributes.FIND(Which);
+                     IF Found THEN
+                       Rec := TempItemFilteredFromAttributes;
+                     EXIT(Found);
+                   END;
+                   EXIT(FIND(Which));
+                 END;
+
+    OnNextRecord=VAR
+                   ResultSteps@1000 : Integer;
+                 BEGIN
+                   IF RunOnTempRec THEN BEGIN
+                     TempItemFilteredFromAttributes.COPY(Rec);
+                     ResultSteps := TempItemFilteredFromAttributes.NEXT(Steps);
+                     IF ResultSteps <> 0 THEN
+                       Rec := TempItemFilteredFromAttributes;
+                     EXIT(ResultSteps);
+                   END;
+                   EXIT(NEXT(Steps));
+                 END;
+
+    OnAfterGetRecord=BEGIN
+                       EnableControls;
+                     END;
+
+    OnAfterGetCurrRecord=VAR
+                           CRMCouplingManagement@1001 : Codeunit 5331;
+                           WorkflowWebhookManagement@1000 : Codeunit 1543;
+                           SocialListeningMgt@1002 : Codeunit 871;
+                         BEGIN
+                           IF SocialListeningSetupVisible THEN
+                             SocialListeningMgt.GetItemFactboxVisibility(Rec,SocialListeningSetupVisible,SocialListeningVisible);
+                           IF CRMIntegrationEnabled THEN
+                             CRMIsCoupledToRecord := CRMCouplingManagement.IsRecordCoupledToCRM(RECORDID);
+
+                           OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+
+                           CanCancelApprovalForRecord := ApprovalsMgmt.CanCancelApprovalForRecord(RECORDID);
+                           CurrPage.ItemAttributesFactBox.PAGE.LoadItemAttributesData("No.");
+
+                           WorkflowWebhookManagement.GetCanRequestAndCanCancel(RECORDID,CanRequestApprovalForFlow,CanCancelApprovalForFlow);
+
+                           SetWorkflowManagementEnabledState;
+
+                           // Contextual Power BI FactBox: send data to filter the report in the FactBox
+                           CurrPage."Power BI Report FactBox".PAGE.SetCurrentListSelection("No.",FALSE,PowerBIVisible);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 64      ;1   ;ActionGroup;
+                      CaptionML=ENU=Item;
+                      Image=DataEntry }
+      { 25      ;2   ;Action    ;
+                      CaptionML=ENU=&Units of Measure;
+                      ToolTipML=ENU=Set up the different units that the item can be traded in, such as piece, box, or hour.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 5404;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=UnitOfMeasure;
+                      PromotedCategory=Category4;
+                      Scope=Repeater }
+      { 137     ;2   ;Action    ;
+                      Name=Attributes;
+                      AccessByPermission=TableData 7500=R;
+                      CaptionML=ENU=Attributes;
+                      ToolTipML=ENU=View or edit the item's attributes, such as color, size, or other characteristics that help to describe the item.;
+                      ApplicationArea=#Advanced;
+                      Image=Category;
+                      PromotedCategory=Category4;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 PAGE.RUNMODAL(PAGE::"Item Attribute Value Editor",Rec);
+                                 CurrPage.SAVERECORD;
+                                 CurrPage.ItemAttributesFactBox.PAGE.LoadItemAttributesData("No.");
+                               END;
+                                }
+      { 138     ;2   ;Action    ;
+                      Name=FilterByAttributes;
+                      AccessByPermission=TableData 7500=R;
+                      CaptionML=ENU=Filter by Attributes;
+                      ToolTipML=ENU=Find items that match specific attributes. To make sure you include recent changes made by other users, clear the filter and then reset it.;
+                      ApplicationArea=#Basic,#Suite;
+                      Promoted=Yes;
+                      Image=EditFilter;
+                      PromotedCategory=Category10;
+                      PromotedOnly=Yes;
+                      OnAction=VAR
+                                 ItemAttributeManagement@1002 : Codeunit 7500;
+                                 TypeHelper@1006 : Codeunit 10;
+                                 CloseAction@1003 : Action;
+                                 FilterText@1001 : Text;
+                                 FilterPageID@1000 : Integer;
+                                 ParameterCount@1004 : Integer;
+                               BEGIN
+                                 FilterPageID := PAGE::"Filter Items by Attribute";
+                                 IF ClientTypeManagement.GetCurrentClientType = CLIENTTYPE::Phone THEN
+                                   FilterPageID := PAGE::"Filter Items by Att. Phone";
+
+                                 CloseAction := PAGE.RUNMODAL(FilterPageID,TempFilterItemAttributesBuffer);
+                                 IF (ClientTypeManagement.GetCurrentClientType <> CLIENTTYPE::Phone) AND (CloseAction <> ACTION::LookupOK) THEN
+                                   EXIT;
+
+                                 IF TempFilterItemAttributesBuffer.ISEMPTY THEN BEGIN
+                                   ClearAttributesFilter;
+                                   EXIT;
+                                 END;
+
+                                 ItemAttributeManagement.FindItemsByAttributes(TempFilterItemAttributesBuffer,TempItemFilteredFromAttributes);
+                                 FilterText := ItemAttributeManagement.GetItemNoFilterText(TempItemFilteredFromAttributes,ParameterCount);
+
+                                 IF ParameterCount < TypeHelper.GetMaxNumberOfParametersInSQLQuery - 100 THEN BEGIN
+                                   FILTERGROUP(0);
+                                   MARKEDONLY(FALSE);
+                                   SETFILTER("No.",FilterText);
+                                 END ELSE BEGIN
+                                   RunOnTempRec := TRUE;
+                                   CLEARMARKS;
+                                   RESET;
+                                 END;
+                               END;
+                                }
+      { 139     ;2   ;Action    ;
+                      Name=ClearAttributes;
+                      AccessByPermission=TableData 7500=R;
+                      CaptionML=ENU=Clear Attributes Filter;
+                      ToolTipML=ENU=Remove the filter for specific item attributes.;
+                      ApplicationArea=#Basic,#Suite;
+                      Promoted=Yes;
+                      Image=RemoveFilterLines;
+                      PromotedCategory=Category10;
+                      PromotedOnly=Yes;
+                      OnAction=BEGIN
+                                 ClearAttributesFilter;
+                                 TempItemFilteredFromAttributes.RESET;
+                                 TempItemFilteredFromAttributes.DELETEALL;
+                                 RunOnTempRec := FALSE;
+
+                                 RestoreTempItemFilteredFromAttributes;
+                               END;
+                                }
+      { 149     ;2   ;Action    ;
+                      Name=BatchUpdateItemAttributes;
+                      CaptionML=ENU=ALF Batch Update Item Attributes;
+                      Promoted=Yes;
+                      Image=UpdateDescription;
+                      PromotedCategory=Category10;
+                      PromotedOnly=Yes;
+                      OnAction=VAR
+                                 MyItem@1000 : Record 27;
+                                 TextRunOnTempRec@1001 : TextConst 'ENU="RunOnTempRec=True, ALF Batch Update Item Attributes extension does not support it."';
+                               BEGIN
+                                 IF NOT RunOnTempRec THEN BEGIN
+                                   MyItem.COPY(Rec);
+                                   REPORT.RUNMODAL(REPORT::ALF_Batch_Update_Item_Attribut,TRUE,FALSE,MyItem);
+                                 END ELSE BEGIN
+                                   MESSAGE(TextRunOnTempRec);
+                                   EXIT;
+                                 END;
+                               END;
+                                }
+      { 30      ;2   ;Action    ;
+                      CaptionML=ENU=Va&riants;
+                      ToolTipML=ENU=View how the inventory level of an item will develop over time according to the variant that you select.;
+                      ApplicationArea=#Planning;
+                      RunObject=Page 5401;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=ItemVariant }
+      { 500     ;2   ;Action    ;
+                      CaptionML=ENU=Substituti&ons;
+                      ToolTipML=ENU=View substitute items that are set up to be sold instead of the item.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 5716;
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=ItemSubstitution }
+      { 121     ;2   ;Action    ;
+                      CaptionML=ENU=Identifiers;
+                      ToolTipML=ENU=View a unique identifier for each item that you want warehouse employees to keep track of within the warehouse when using handheld devices. The item identifier can include the item number, the variant code and the unit of measure.;
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 7706;
+                      RunPageView=SORTING(Item No.,Variant Code,Unit of Measure Code);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=BarCode }
+      { 82      ;2   ;Action    ;
+                      CaptionML=ENU=Cross Re&ferences;
+                      ToolTipML=ENU=Set up a customer's or vendor's own identification of the selected item. Cross-references to the customer's item number means that the item number is automatically shown on sales documents instead of the number that you use.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 5721;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Change;
+                      PromotedCategory=Category4;
+                      PromotedOnly=Yes;
+                      Scope=Repeater }
+      { 28      ;2   ;Action    ;
+                      CaptionML=ENU=E&xtended Texts;
+                      ToolTipML=ENU=Select or set up additional text for the description of the item. Extended text can be inserted under the Description field on document lines for the item.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 391;
+                      RunPageView=SORTING(Table Name,No.,Language Code,All Language Codes,Starting Date,Ending Date);
+                      RunPageLink=Table Name=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=Text;
+                      Scope=Repeater }
+      { 27      ;2   ;Action    ;
+                      CaptionML=ENU=Translations;
+                      ToolTipML=ENU=Set up translated item descriptions for the selected item. Translated item descriptions are automatically inserted on documents according to the language code.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 35;
+                      RunPageLink=Item No.=FIELD(No.),
+                                  Variant Code=CONST();
+                      Image=Translations;
+                      PromotedCategory=Category4;
+                      Scope=Repeater }
+      { 145     ;2   ;ActionGroup;
+                      Visible=False }
+      { 90      ;3   ;Action    ;
+                      Name=AdjustInventory;
+                      CaptionML=ENU=Adjust Inventory;
+                      ToolTipML=ENU=Increase or decrease the item's inventory quantity manually by entering a new quantity. Adjusting the inventory quantity manually may be relevant after a physical count or if you do not record purchased quantities.;
+                      ApplicationArea=#Basic,#Suite;
+                      Promoted=Yes;
+                      Visible=IsFoundationEnabled;
+                      Enabled=IsInventoriable;
+                      Image=InventoryCalculation;
+                      PromotedCategory=Category4;
+                      PromotedOnly=Yes;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 AdjustInventory@1000 : Page 1327;
+                               BEGIN
+                                 COMMIT;
+                                 AdjustInventory.SetItem("No.");
+                                 AdjustInventory.RUNMODAL;
+                               END;
+                                }
+      { 94      ;2   ;ActionGroup;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions }
+      { 184     ;3   ;Action    ;
+                      Name=DimensionsSingle;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions-Single;
+                      ToolTipML=ENU=View or edit the single set of dimensions that are set up for the selected record.;
+                      ApplicationArea=#Dimensions;
+                      RunObject=Page 540;
+                      RunPageLink=Table ID=CONST(27),
+                                  No.=FIELD(No.);
+                      Image=Dimensions;
+                      Scope=Repeater }
+      { 93      ;3   ;Action    ;
+                      Name=DimensionsMultiple;
+                      AccessByPermission=TableData 348=R;
+                      CaptionML=ENU=Dimensions-&Multiple;
+                      ToolTipML=ENU=View or edit dimensions for a group of records. You can assign dimension codes to transactions to distribute costs and analyze historical information.;
+                      ApplicationArea=#Dimensions;
+                      Image=DimensionSets;
+                      OnAction=VAR
+                                 Item@1001 : Record 27;
+                                 DefaultDimMultiple@1002 : Page 542;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Item);
+                                 DefaultDimMultiple.SetMultiItem(Item);
+                                 DefaultDimMultiple.RUNMODAL;
+                               END;
+                                }
+      { 56      ;1   ;ActionGroup;
+                      CaptionML=ENU=History;
+                      Image=History }
+      { 84      ;2   ;ActionGroup;
+                      CaptionML=ENU=E&ntries;
+                      Image=Entries }
+      { 14      ;3   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Ledger E&ntries;
+                      ToolTipML=ENU=View the history of transactions that have been posted for the selected record.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 38;
+                      RunPageView=SORTING(Item No.)
+                                  ORDER(Descending);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=ItemLedger;
+                      PromotedCategory=Category5;
+                      Scope=Repeater }
+      { 23      ;3   ;Action    ;
+                      CaptionML=ENU=&Phys. Inventory Ledger Entries;
+                      ToolTipML=ENU=View how many units of the item you had in stock at the last physical count.;
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 390;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=PhysicalInventoryLedger;
+                      PromotedCategory=Category5;
+                      Scope=Repeater }
+      { 77      ;3   ;Action    ;
+                      CaptionML=ENU=&Reservation Entries;
+                      ToolTipML=ENU=View all reservations that are made for the item, either manually or automatically.;
+                      ApplicationArea=#Reservation;
+                      RunObject=Page 497;
+                      RunPageView=SORTING(Item No.,Variant Code,Location Code,Reservation Status);
+                      RunPageLink=Reservation Status=CONST(Reservation),
+                                  Item No.=FIELD(No.);
+                      Image=ReservationLedger }
+      { 5800    ;3   ;Action    ;
+                      CaptionML=ENU=&Value Entries;
+                      ToolTipML=ENU=View the history of posted amounts that affect the value of the item. Value entries are created for every transaction with the item.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 5802;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=ValueLedger }
+      { 6500    ;3   ;Action    ;
+                      CaptionML=ENU=Item &Tracking Entries;
+                      ToolTipML=ENU=View serial or lot numbers that are assigned to items.;
+                      ApplicationArea=#ItemTracking;
+                      Image=ItemTrackingLedger;
+                      OnAction=VAR
+                                 ItemTrackingDocMgt@1000 : Codeunit 6503;
+                               BEGIN
+                                 ItemTrackingDocMgt.ShowItemTrackingForMasterData(3,'',"No.",'','','','');
+                               END;
+                                }
+      { 120     ;1   ;ActionGroup;
+                      Name=PricesandDiscounts;
+                      CaptionML=ENU=Prices and Discounts }
+      { 1901240604;2 ;Action    ;
+                      Name=Prices_Prices;
+                      CaptionML=ENU=Special Prices;
+                      ToolTipML=ENU=Set up different prices for the selected item. An item price is automatically used on invoice lines when the specified criteria are met, such as customer, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7002;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=Price;
+                      PromotedCategory=Category6;
+                      Scope=Repeater }
+      { 1900869004;2 ;Action    ;
+                      Name=Prices_LineDiscounts;
+                      CaptionML=ENU=Special Discounts;
+                      ToolTipML=ENU=Set up different discounts for the selected item. An item discount is automatically granted on invoice lines when the specified criteria are met, such as customer, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7004;
+                      RunPageView=SORTING(Type,Code);
+                      RunPageLink=Type=CONST(Item),
+                                  Code=FIELD(No.);
+                      Image=LineDiscount;
+                      PromotedCategory=Category6;
+                      Scope=Repeater }
+      { 133     ;2   ;Action    ;
+                      Name=PricesDiscountsOverview;
+                      CaptionML=ENU=Special Prices & Discounts Overview;
+                      ToolTipML=ENU=View the special prices and line discounts that you grant for this item when certain criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      Image=PriceWorksheet;
+                      PromotedCategory=Category6;
+                      OnAction=VAR
+                                 SalesPriceAndLineDiscounts@1000 : Page 1345;
+                               BEGIN
+                                 SalesPriceAndLineDiscounts.InitPage(TRUE);
+                                 SalesPriceAndLineDiscounts.LoadItem(Rec);
+                                 SalesPriceAndLineDiscounts.RUNMODAL;
+                               END;
+                                }
+      { 92      ;2   ;Action    ;
+                      CaptionML=ENU=Sales Price Worksheet;
+                      ToolTipML=ENU=Change to the unit price for the item or specify how you want to enter changes in the price agreement for one customer, a group of customers, or all customers.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7023;
+                      Promoted=Yes;
+                      Visible=NOT IsOnPhone;
+                      Image=PriceWorksheet;
+                      PromotedCategory=Category6 }
+      { 117     ;1   ;ActionGroup;
+                      CaptionML=ENU=Periodic Activities }
+      { 1907108104;2 ;Action    ;
+                      CaptionML=ENU=Adjust Cost - Item Entries;
+                      ToolTipML=ENU=Adjust inventory values in value entries so that you use the correct adjusted cost for updating the general ledger and so that sales and profit statistics are up to date.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 795;
+                      Image=AdjustEntries;
+                      PromotedCategory=Category8 }
+      { 96      ;2   ;Action    ;
+                      CaptionML=ENU=Post Inventory Cost to G/L;
+                      ToolTipML=ENU=Post the quantity and value changes to the inventory in the item ledger entries and the value entries when you post inventory transactions, such as sales shipments or purchase receipts.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 1002;
+                      Image=PostInventoryToGL;
+                      PromotedCategory=Category8 }
+      { 98      ;2   ;Action    ;
+                      CaptionML=ENU=Physical Inventory Journal;
+                      ToolTipML=ENU=Select how you want to maintain an up-to-date record of your inventory at different locations.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Page 392;
+                      Image=PhysicalInventory;
+                      PromotedCategory=Category8 }
+      { 119     ;2   ;Action    ;
+                      CaptionML=ENU=Revaluation Journal;
+                      ToolTipML=ENU=View or edit the inventory value of items, which you can change, such as after doing a physical inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Page 5803;
+                      Image=Journal;
+                      PromotedCategory=Category8 }
+      { 88      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 87      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      ToolTipML=ENU=Request approval to change the record.;
+                      ApplicationArea=#Suite;
+                      Promoted=Yes;
+                      Enabled=(NOT OpenApprovalEntriesExist) AND EnabledApprovalWorkflowsExist AND CanRequestApprovalForFlow;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckItemApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendItemForApproval(Rec);
+                               END;
+                                }
+      { 86      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      ToolTipML=ENU=Cancel the approval request.;
+                      ApplicationArea=#Suite;
+                      Promoted=Yes;
+                      Enabled=CanCancelApprovalForRecord OR CanCancelApprovalForFlow;
+                      Image=CancelApprovalRequest;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                                 WorkflowWebhookManagement@1000 : Codeunit 1543;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelItemApprovalRequest(Rec);
+                                 WorkflowWebhookManagement.FindAndCancel(RECORDID);
+                               END;
+                                }
+      { 135     ;1   ;ActionGroup;
+                      CaptionML=ENU=Workflow }
+      { 134     ;2   ;Action    ;
+                      Name=CreateApprovalWorkflow;
+                      CaptionML=ENU=Create Approval Workflow;
+                      ToolTipML=ENU=Set up an approval workflow for creating or changing items, by going through a few pages that will guide you.;
+                      ApplicationArea=#Suite;
+                      Enabled=NOT EnabledApprovalWorkflowsExist;
+                      Image=CreateWorkflow;
+                      OnAction=BEGIN
+                                 PAGE.RUNMODAL(PAGE::"Item Approval WF Setup Wizard");
+                               END;
+                                }
+      { 20      ;2   ;Action    ;
+                      Name=ManageApprovalWorkflow;
+                      CaptionML=ENU=Manage Approval Workflow;
+                      ToolTipML=ENU=View or edit existing approval workflows for creating or changing items.;
+                      ApplicationArea=#Suite;
+                      Enabled=EnabledApprovalWorkflowsExist;
+                      Image=WorkflowSetup;
+                      OnAction=VAR
+                                 WorkflowManagement@1000 : Codeunit 1501;
+                               BEGIN
+                                 WorkflowManagement.NavigateToWorkflows(DATABASE::Item,EventFilter);
+                               END;
+                                }
+      { 110     ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 111     ;2   ;Action    ;
+                      AccessByPermission=TableData 5700=R;
+                      CaptionML=ENU=&Create Stockkeeping Unit;
+                      ToolTipML=ENU=Create an instance of the item at each location that is set up.;
+                      ApplicationArea=#Warehouse;
+                      Image=CreateSKU;
+                      OnAction=VAR
+                                 Item@1001 : Record 27;
+                               BEGIN
+                                 Item.SETRANGE("No.","No.");
+                                 REPORT.RUNMODAL(REPORT::"Create Stockkeeping Unit",TRUE,FALSE,Item);
+                               END;
+                                }
+      { 7380    ;2   ;Action    ;
+                      AccessByPermission=TableData 7380=R;
+                      CaptionML=ENU=C&alculate Counting Period;
+                      ToolTipML=ENU=Prepare for a physical inventory by calculating which items or SKUs need to be counted in the current period.;
+                      ApplicationArea=#Warehouse;
+                      Image=CalculateCalendar;
+                      OnAction=VAR
+                                 Item@1001 : Record 27;
+                                 PhysInvtCountMgt@1000 : Codeunit 7380;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Item);
+                                 PhysInvtCountMgt.UpdateItemPhysInvtCount(Item);
+                               END;
+                                }
+      { 1905370404;1 ;Action    ;
+                      CaptionML=ENU=Requisition Worksheet;
+                      ToolTipML=ENU=Calculate a supply plan to fulfill item demand with purchases or transfers.;
+                      ApplicationArea=#Planning;
+                      RunObject=Page 291;
+                      Image=Worksheet }
+      { 1904344904;1 ;Action    ;
+                      CaptionML=ENU=Item Journal;
+                      ToolTipML=ENU=Open a list of journals where you can adjust the physical quantity of items on inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Page 40;
+                      Promoted=Yes;
+                      Image=Journals;
+                      PromotedCategory=Process }
+      { 1906716204;1 ;Action    ;
+                      CaptionML=ENU=Item Reclassification Journal;
+                      ToolTipML=ENU=Change information on item ledger entries, such as dimensions, location codes, bin codes, and serial or lot numbers.;
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 393;
+                      Promoted=Yes;
+                      Image=Journals;
+                      PromotedCategory=Process }
+      { 1902532604;1 ;Action    ;
+                      CaptionML=ENU=Item Tracing;
+                      ToolTipML=ENU=Trace where a lot or serial number assigned to the item was used, for example, to find which lot a defective component came from or to find all the customers that have received items containing the defective component.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Page 6520;
+                      Image=ItemTracing }
+      { 1900805004;1 ;Action    ;
+                      CaptionML=ENU=Adjust Item Cost/Price;
+                      ToolTipML=ENU=Adjusts the Last Direct Cost, Standard Cost, Unit Price, Profit %, or Indirect Cost % fields on selected item or stockkeeping unit cards and for selected filters. For example, you can change the last direct cost by 5% on all items from a specific vendor.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 794;
+                      Image=AdjustItemCost }
+      { 147     ;1   ;Action    ;
+                      Name=ApplyTemplate;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Apply Template;
+                      ToolTipML=ENU=Apply a template to update one or more entities with your standard settings for a certain type of entity.;
+                      ApplicationArea=#Basic,#Suite;
+                      Image=ApplyTemplate;
+                      OnAction=VAR
+                                 Item@1000 : Record 27;
+                                 ItemTemplate@1001 : Record 1301;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Item);
+                                 ItemTemplate.UpdateItemsFromTemplate(Item);
+                               END;
+                                }
+      { 142     ;1   ;ActionGroup;
+                      CaptionML=ENU=Display }
+      { 141     ;2   ;Action    ;
+                      Name=ReportFactBoxVisibility;
+                      CaptionML=ENU=Show/Hide Power BI Reports;
+                      ToolTipML=ENU=Select if the Power BI FactBox is visible or not.;
+                      ApplicationArea=#Basic,#Suite;
+                      Image=Report;
+                      OnAction=BEGIN
+                                 // save visibility value into the table
+                                 CurrPage."Power BI Report FactBox".PAGE.SetFactBoxVisibility(PowerBIVisible);
+                               END;
+                                }
+      { 1900000006;0 ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 127     ;1   ;ActionGroup;
+                      CaptionML=ENU=Assembly/Production }
+      { 18      ;2   ;Action    ;
+                      CaptionML=ENU=Assemble to Order - Sales;
+                      ToolTipML=ENU=View key sales figures for assembly components that may be sold either as part of assembly items in assemble-to-order sales or as separate items directly from inventory. Use this report to analyze the quantity, cost, sales, and profit figures of assembly components to support decisions, such as whether to price a kit differently or to stop or start using a particular item in assemblies.;
+                      ApplicationArea=#Assembly;
+                      RunObject=Report 915;
+                      Image=Report }
+      { 1902353206;2 ;Action    ;
+                      CaptionML=ENU=Where-Used (Top Level);
+                      ToolTipML=ENU=View where and in what quantities the item is used in the product structure. The report only shows information for the top-level item. For example, if item "A" is used to produce item "B", and item "B" is used to produce item "C", the report will show item B if you run this report for item A. If you run this report for item B, then item C will be shown as where-used.;
+                      ApplicationArea=#Assembly;
+                      RunObject=Report 99000757;
+                      Image=Report }
+      { 1907778006;2 ;Action    ;
+                      CaptionML=ENU=Quantity Explosion of BOM;
+                      ToolTipML=ENU=View an indented BOM listing for the item or items that you specify in the filters. The production BOM is completely exploded for all levels.;
+                      ApplicationArea=#Assembly;
+                      RunObject=Report 99000753;
+                      Image=Report }
+      { 132     ;2   ;ActionGroup;
+                      CaptionML=ENU=Costing;
+                      Image=ItemCosts }
+      { 1907928706;3 ;Action    ;
+                      CaptionML=ENU=Inventory Valuation - WIP;
+                      ToolTipML=ENU=View inventory valuation for selected production orders in your WIP inventory. The report also shows information about the value of consumption, capacity usage and output in WIP. The printed report only shows invoiced amounts, that is, the cost of entries that have been posted as invoiced.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5802;
+                      Image=Report }
+      { 1905889606;3 ;Action    ;
+                      CaptionML=ENU=Cost Shares Breakdown;
+                      ToolTipML=ENU=View the item's cost broken down in inventory, WIP, or COGS, according to purchase and material cost, capacity cost, capacity overhead cost, manufacturing overhead cost, subcontracted cost, variance, indirect cost, revaluation, and rounding. The report breaks down cost at a single BOM level and does not roll up the costs from lower BOM levels. The report does not calculate the cost share from items that use the Average costing method.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5848;
+                      Image=Report }
+      { 1901374406;3 ;Action    ;
+                      CaptionML=ENU=Detailed Calculation;
+                      ToolTipML=ENU=View the list of all costs for the item taking into account any scrap during production.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 99000756;
+                      Image=Report }
+      { 1900812706;3 ;Action    ;
+                      CaptionML=ENU=Rolled-up Cost Shares;
+                      ToolTipML=ENU=View the cost shares of all items in the parent item's product structure, their quantity and their cost shares specified in material, capacity, overhead, and total cost. Material cost is calculated as the cost of all items in the parent item's product structure. Capacity and subcontractor costs are calculated as the costs related to produce all of the items in the parent item's product structure. Material cost is calculated as the cost of all items in the item's product structure. Capacity and subcontractor costs are the cost related to the parent item only.;
+                      ApplicationArea=#Manufacturing;
+                      RunObject=Report 99000754;
+                      Image=Report }
+      { 1901316306;3 ;Action    ;
+                      CaptionML=ENU=Single-Level Cost Shares;
+                      ToolTipML=ENU=View the cost shares of all items in the item's product structure, their quantity and their cost shares specified in material, capacity, overhead, and total cost. Material cost is calculated as the cost of all items in the parent item's product structure. Capacity and subcontractor costs are calculated as the costs related to produce all of the items in the parent item's product structure.;
+                      ApplicationArea=#Manufacturing;
+                      RunObject=Report 99000755;
+                      Image=Report }
+      { 128     ;1   ;ActionGroup;
+                      CaptionML=ENU=Inventory }
+      { 1900907306;2 ;Action    ;
+                      CaptionML=ENU=Inventory - List;
+                      ToolTipML=ENU=View various information about the item, such as name, unit of measure, posting group, shelf number, vendor's item number, lead time calculation, minimum inventory, and alternate item number. You can also see if the item is blocked.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 701;
+                      Image=Report }
+      { 1906212206;2 ;Action    ;
+                      CaptionML=ENU=Inventory - Availability Plan;
+                      ToolTipML=ENU=View a list of the quantity of each item in customer, purchase, and transfer orders and the quantity available in inventory. The list is divided into columns that cover six periods with starting and ending dates as well as the periods before and after those periods. The list is useful when you are planning your inventory purchases.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 707;
+                      Image=ItemAvailability }
+      { 1900430206;2 ;Action    ;
+                      CaptionML=ENU=Item/Vendor Catalog;
+                      ToolTipML=ENU=View a list of the vendors for the selected items. For each combination of item and vendor, it shows direct unit cost, lead time calculation and the vendor's item number.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 720;
+                      Image=Report }
+      { 1907644006;2 ;Action    ;
+                      CaptionML=ENU=Phys. Inventory List;
+                      ToolTipML=ENU=View a list of the lines that you have calculated in the Phys. Inventory Journal window. You can use this report during the physical inventory count to mark down actual quantities on hand in the warehouse and compare them to what is recorded in the program.;
+                      ApplicationArea=#Warehouse;
+                      RunObject=Report 722;
+                      Image=Report }
+      { 1907253406;2 ;Action    ;
+                      CaptionML=ENU=Catalog Item Sales;
+                      ToolTipML=ENU=View a list of item sales for each catalog item during a selected time period. It can be used to review a company's sale of catalog items.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5700;
+                      Image=Report }
+      { 1905753506;2 ;Action    ;
+                      CaptionML=ENU=Item Substitutions;
+                      ToolTipML=ENU=View or edit any substitute items that are set up to be traded instead of the item in case it is not available.;
+                      ApplicationArea=#Suite;
+                      RunObject=Report 5701;
+                      Image=Report }
+      { 1905572506;2 ;Action    ;
+                      CaptionML=ENU=Price List;
+                      ToolTipML=ENU=View, print, or save a list of your items and their prices, for example, to send to customers. You can create the list for specific customers, campaigns, currencies, or other criteria.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 715;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Category9 }
+      { 1900128906;2 ;Action    ;
+                      CaptionML=ENU=Inventory Cost and Price List;
+                      ToolTipML=ENU=View, print, or save a list of your items and their price and cost information. The report specifies direct unit cost, last direct cost, unit price, profit percentage, and profit.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 716;
+                      Image=Report }
+      { 1901091106;2 ;Action    ;
+                      CaptionML=ENU=Inventory Availability;
+                      ToolTipML=ENU=View, print, or save a summary of historical inventory transactions with selected items, for example, to decide when to purchase the items. The report specifies quantity on sales order, quantity on purchase order, back orders from vendors, minimum inventory, and whether there are reorders.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 705;
+                      Image=Report }
+      { 131     ;2   ;ActionGroup;
+                      CaptionML=ENU=Item Register;
+                      Image=ItemRegisters }
+      { 1907629906;3 ;Action    ;
+                      CaptionML=ENU=Item Register - Quantity;
+                      ToolTipML=ENU=View one or more selected item registers showing quantity. The report can be used to document a register's contents for internal or external audits.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 703;
+                      Image=Report }
+      { 1902962906;3 ;Action    ;
+                      CaptionML=ENU=Item Register - Value;
+                      ToolTipML=ENU=View one or more selected item registers showing value. The report can be used to document the contents of a register for internal or external audits.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5805;
+                      Image=Report }
+      { 130     ;2   ;ActionGroup;
+                      CaptionML=ENU=Costing;
+                      Image=ItemCosts }
+      { 1900730006;3 ;Action    ;
+                      CaptionML=ENU=Inventory - Cost Variance;
+                      ToolTipML=ENU=View information about selected items, unit of measure, standard cost, and costing method, as well as additional information about item entries: unit amount, direct unit cost, unit cost variance (the difference between the unit amount and unit cost), invoiced quantity, and total variance amount (quantity * unit cost variance). The report can be used primarily if you have chosen the Standard costing method on the item card.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 721;
+                      Image=ItemCosts }
+      { 1904299906;3 ;Action    ;
+                      CaptionML=ENU=Invt. Valuation - Cost Spec.;
+                      ToolTipML=ENU=View an overview of the current inventory value of selected items and specifies the cost of these items as of the date specified in the Valuation Date field. The report includes all costs, both those posted as invoiced and those posted as expected. For each of the items that you specify when setting up the report, the printed report shows quantity on stock, the cost per unit and the total amount. For each of these columns, the report specifies the cost as the various value entry types.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5801;
+                      Image=Report }
+      { 1907846806;3 ;Action    ;
+                      CaptionML=ENU=Compare List;
+                      ToolTipML=ENU=View a comparison of components for two items. The printout compares the components, their unit cost, cost share and cost per component.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 99000758;
+                      Image=Report }
+      { 100     ;2   ;ActionGroup;
+                      CaptionML=ENU=Inventory Details;
+                      Image=Report }
+      { 1904068306;3 ;Action    ;
+                      CaptionML=ENU=Inventory - Transaction Detail;
+                      ToolTipML=ENU=View transaction details with entries for the selected items for a selected period. The report shows the inventory at the beginning of the period, all of the increase and decrease entries during the period with a running update of the inventory, and the inventory at the close of the period. The report can be used at the close of an accounting period, for example, or for an audit.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 704;
+                      Image=Report }
+      { 1900461506;3 ;Action    ;
+                      CaptionML=ENU=Item Charges - Specification;
+                      ToolTipML=ENU=View a specification of the direct costs that your company has assigned and posted as item charges. The report shows the various value entries that have been posted as item charges. It includes all costs, both those posted as invoiced and those posted as expected.;
+                      ApplicationArea=#ItemCharges;
+                      RunObject=Report 5806;
+                      Image=Report }
+      { 1900111206;3 ;Action    ;
+                      CaptionML=ENU=Item Age Composition - Quantity;
+                      ToolTipML=ENU=View, print, or save an overview of the current age composition of selected items in your inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5807;
+                      Image=Report }
+      { 1906747006;3 ;Action    ;
+                      CaptionML=ENU=Item Expiration - Quantity;
+                      ToolTipML=ENU=View an overview of the quantities of selected items in your inventory whose expiration dates fall within a certain period. The list shows the number of units of the selected item that will expire in a given time period. For each of the items that you specify when setting up the report, the printed document shows the number of units that will expire during each of three periods of equal length and the total inventory quantity of the selected item.;
+                      ApplicationArea=#ItemTracking;
+                      RunObject=Report 5809;
+                      Image=Report }
+      { 102     ;2   ;ActionGroup;
+                      Name=Reports;
+                      CaptionML=ENU=Inventory Statistics;
+                      Image=Report }
+      { 1900762706;3 ;Action    ;
+                      CaptionML=ENU=Inventory - Sales Statistics;
+                      ToolTipML=ENU=View, print, or save a summary of selected items' sales per customer, for example, to analyze the profit on individual items or trends in revenues and profit. The report specifies direct unit cost, unit price, sales quantity, sales in LCY, profit percentage, and profit.;
+                      ApplicationArea=#Suite;
+                      RunObject=Report 712;
+                      Image=Report }
+      { 1904034006;3 ;Action    ;
+                      CaptionML=ENU=Inventory - Customer Sales;
+                      ToolTipML=ENU=View, print, or save a list of customers that have purchased selected items within a selected period, for example, to analyze customers' purchasing patterns. The report specifies quantity, amount, discount, profit percentage, and profit.;
+                      ApplicationArea=#Suite;
+                      RunObject=Report 713;
+                      Image=Report }
+      { 1907930606;3 ;Action    ;
+                      CaptionML=ENU=Inventory - Top 10 List;
+                      ToolTipML=ENU=View information about the items with the highest or lowest sales within a selected period. You can also choose that items that are not on hand or have not been sold are not included in the report. The items are sorted by order size within the selected period. The list gives a quick overview of the items that have sold either best or worst, or the items that have the most or fewest units on inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 711;
+                      Image=Report }
+      { 104     ;2   ;ActionGroup;
+                      CaptionML=ENU=Finance Reports;
+                      Image=Report }
+      { 1906316306;3 ;Action    ;
+                      CaptionML=ENU=Inventory Valuation;
+                      ToolTipML=ENU=View, print, or save a list of the values of the on-hand quantity of each inventory item.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 1001;
+                      Image=Report }
+      { 1901254106;3 ;Action    ;
+                      CaptionML=ENU=Status;
+                      ToolTipML=ENU=View, print, or save the status of partially filled or unfilled orders so you can determine what effect filling these orders may have on your inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 706;
+                      Image=Report }
+      { 1903496006;3 ;Action    ;
+                      CaptionML=ENU=Item Age Composition - Value;
+                      ToolTipML=ENU=View, print, or save an overview of the current age composition of selected items in your inventory.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 5808;
+                      Image=Report }
+      { 129     ;1   ;ActionGroup;
+                      CaptionML=ENU=Orders }
+      { 1903262806;2 ;Action    ;
+                      CaptionML=ENU=Inventory Order Details;
+                      ToolTipML=ENU=View a list of the orders that have not yet been shipped or received and the items in the orders. It shows the order number, customer's name, shipment date, order quantity, quantity on back order, outstanding quantity and unit price, as well as possible discount percentage and amount. The quantity on back order and outstanding quantity and amount are totaled for each item. The report can be used to find out whether there are currently shipment problems or any can be expected.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 708;
+                      Image=Report }
+      { 1904739806;2 ;Action    ;
+                      CaptionML=ENU=Inventory Purchase Orders;
+                      ToolTipML=ENU=View a list of items on order from vendors. It also shows the expected receipt date and the quantity and amount on back orders. The report can be used, for example, to see when items should be received and whether a reminder of a back order should be issued.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 709;
+                      Image=Report }
+      { 1906231806;2 ;Action    ;
+                      CaptionML=ENU=Inventory - Vendor Purchases;
+                      ToolTipML=ENU=View a list of the vendors that your company has purchased items from within a selected period. It shows invoiced quantity, amount and discount. The report can be used to analyze a company's item purchases.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 714;
+                      Image=Report }
+      { 1906101206;2 ;Action    ;
+                      CaptionML=ENU=Inventory - Reorders;
+                      ToolTipML=ENU=View a list of items with negative inventory that is sorted by vendor. You can use this report to help decide which items have to be reordered. The report shows how many items are inbound on purchase orders or transfer orders and how many items are in inventory. Based on this information and any defined reorder quantity for the item, a suggested value is inserted in the Qty. to Order field.;
+                      ApplicationArea=#Planning;
+                      RunObject=Report 717;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1900210306;2 ;Action    ;
+                      CaptionML=ENU=Inventory - Sales Back Orders;
+                      ToolTipML=ENU=Shows a list of order lines with shipment dates that are exceeded. The report also shows if there are other items for the customer on back order.;
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Report 718;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 126     ;1   ;ActionGroup;
+                      CaptionML=ENU=Item }
+      { 123     ;2   ;Action    ;
+                      Name=ApprovalEntries;
+                      AccessByPermission=TableData 454=R;
+                      CaptionML=ENU=Approvals;
+                      ToolTipML=ENU=View a list of the records that are waiting to be approved. For example, you can see who requested the record to be approved, when it was sent, and when it is due to be approved.;
+                      ApplicationArea=#Suite;
+                      Promoted=Yes;
+                      Image=Approvals;
+                      PromotedCategory=Category4;
+                      PromotedOnly=Yes;
+                      OnAction=BEGIN
+                                 ApprovalsMgmt.OpenApprovalEntriesPage(RECORDID);
+                               END;
+                                }
+      { 10      ;1   ;ActionGroup;
+                      CaptionML=ENU=Availability;
+                      Image=Item }
+      { 73      ;2   ;Action    ;
+                      AccessByPermission=TableData 14=R;
+                      CaptionML=ENU=Items b&y Location;
+                      ToolTipML=ENU=Show a list of items grouped by location.;
+                      ApplicationArea=#Location;
+                      Image=ItemAvailbyLoc;
+                      OnAction=BEGIN
+                                 PAGE.RUN(PAGE::"Items by Location",Rec);
+                               END;
+                                }
+      { 79      ;2   ;ActionGroup;
+                      CaptionML=ENU=&Item Availability by;
+                      Image=ItemAvailability }
+      { 5       ;3   ;Action    ;
+                      Name=<Action5>;
+                      CaptionML=ENU=Event;
+                      ToolTipML=ENU=View how the actual and the projected available balance of an item will develop over time according to supply and demand events.;
+                      ApplicationArea=#Advanced;
+                      Image=Event;
+                      OnAction=BEGIN
+                                 ItemAvailFormsMgt.ShowItemAvailFromItem(Rec,ItemAvailFormsMgt.ByEvent);
+                               END;
+                                }
+      { 21      ;3   ;Action    ;
+                      CaptionML=ENU=Period;
+                      ToolTipML=ENU=Show the projected quantity of the item over time according to time periods, such as day, week, or month.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 157;
+                      RunPageLink=No.=FIELD(No.),
+                                  Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                                  Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                                  Location Filter=FIELD(Location Filter),
+                                  Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                                  Variant Filter=FIELD(Variant Filter);
+                      Image=Period }
+      { 80      ;3   ;Action    ;
+                      CaptionML=ENU=Variant;
+                      ToolTipML=ENU=View or edit the item's variants. Instead of setting up each color of an item as a separate item, you can set up the various colors as variants of the item.;
+                      ApplicationArea=#Planning;
+                      RunObject=Page 5414;
+                      RunPageLink=No.=FIELD(No.),
+                                  Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                                  Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                                  Location Filter=FIELD(Location Filter),
+                                  Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                                  Variant Filter=FIELD(Variant Filter);
+                      Image=ItemVariant }
+      { 78      ;3   ;Action    ;
+                      CaptionML=ENU=Location;
+                      ToolTipML=ENU=View the actual and projected quantity of the item per location.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 492;
+                      RunPageLink=No.=FIELD(No.),
+                                  Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                                  Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                                  Location Filter=FIELD(Location Filter),
+                                  Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                                  Variant Filter=FIELD(Variant Filter);
+                      Image=Warehouse }
+      { 13      ;3   ;Action    ;
+                      CaptionML=ENU=BOM Level;
+                      ToolTipML=ENU=View availability figures for items on bills of materials that show how many units of a parent item you can make based on the availability of child items.;
+                      ApplicationArea=#Assembly;
+                      Image=BOMLevel;
+                      OnAction=BEGIN
+                                 ItemAvailFormsMgt.ShowItemAvailFromItem(Rec,ItemAvailFormsMgt.ByBOM);
+                               END;
+                                }
+      { 19      ;3   ;Action    ;
+                      CaptionML=ENU=Timeline;
+                      ToolTipML=ENU=Get a graphical view of an item's projected inventory based on future supply and demand events, with or without planning suggestions. The result is a graphical representation of the inventory profile.;
+                      ApplicationArea=#Advanced;
+                      Image=Timeline;
+                      OnAction=BEGIN
+                                 ShowTimelineFromItem(Rec);
+                               END;
+                                }
+      { 83      ;1   ;ActionGroup;
+                      Name=ActionGroupCRM;
+                      CaptionML=ENU=Dynamics 365 for Sales;
+                      Visible=CRMIntegrationEnabled }
+      { 75      ;2   ;Action    ;
+                      Name=CRMGoToProduct;
+                      CaptionML=ENU=Product;
+                      ToolTipML=ENU=Open the coupled Dynamics 365 for Sales product.;
+                      ApplicationArea=#Suite;
+                      Image=CoupledItem;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.ShowCRMEntityFromRecordID(RECORDID);
+                               END;
+                                }
+      { 72      ;2   ;Action    ;
+                      Name=CRMSynchronizeNow;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Synchronize;
+                      ToolTipML=ENU=Send updated data to Dynamics 365 for Sales.;
+                      ApplicationArea=#Suite;
+                      Image=Refresh;
+                      OnAction=VAR
+                                 Item@1000 : Record 27;
+                                 CRMIntegrationManagement@1001 : Codeunit 5330;
+                                 ItemRecordRef@1003 : RecordRef;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Item);
+                                 Item.NEXT;
+
+                                 IF Item.COUNT = 1 THEN
+                                   CRMIntegrationManagement.UpdateOneNow(Item.RECORDID)
+                                 ELSE BEGIN
+                                   ItemRecordRef.GETTABLE(Item);
+                                   CRMIntegrationManagement.UpdateMultipleNow(ItemRecordRef);
+                                 END
+                               END;
+                                }
+      { 70      ;2   ;ActionGroup;
+                      Name=Coupling;
+                      CaptionML=[@@@=Coupling is a noun;
+                                 ENU=Coupling];
+                      ToolTipML=ENU=Create, change, or delete a coupling between the Business Central record and a Dynamics 365 for Sales record.;
+                      Image=LinkAccount }
+      { 68      ;3   ;Action    ;
+                      Name=ManageCRMCoupling;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Set Up Coupling;
+                      ToolTipML=ENU=Create or modify the coupling to a Dynamics 365 for Sales product.;
+                      ApplicationArea=#Suite;
+                      Image=LinkAccount;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.DefineCoupling(RECORDID);
+                               END;
+                                }
+      { 66      ;3   ;Action    ;
+                      Name=DeleteCRMCoupling;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Delete Coupling;
+                      ToolTipML=ENU=Delete the coupling to a Dynamics 365 for Sales product.;
+                      ApplicationArea=#Suite;
+                      Enabled=CRMIsCoupledToRecord;
+                      Image=UnLinkAccount;
+                      OnAction=VAR
+                                 CRMCouplingManagement@1000 : Codeunit 5331;
+                               BEGIN
+                                 CRMCouplingManagement.RemoveCoupling(RECORDID);
+                               END;
+                                }
+      { 148     ;2   ;Action    ;
+                      Name=ShowLog;
+                      CaptionML=ENU=Synchronization Log;
+                      ToolTipML=ENU=View integration synchronization jobs for the item table.;
+                      ApplicationArea=#Suite;
+                      Image=Log;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.ShowLog(RECORDID);
+                               END;
+                                }
+      { 54      ;1   ;ActionGroup;
+                      Name=Assembly/Production;
+                      CaptionML=ENU=Assembly/Production;
+                      Image=Production }
+      { 52      ;2   ;Action    ;
+                      CaptionML=ENU=Structure;
+                      ToolTipML=ENU=View which child items are used in an item's assembly BOM or production BOM. Each item level can be collapsed or expanded to obtain an overview or detailed view.;
+                      ApplicationArea=#Assembly;
+                      Image=Hierarchy;
+                      OnAction=VAR
+                                 BOMStructure@1000 : Page 5870;
+                               BEGIN
+                                 BOMStructure.InitItem(Rec);
+                                 BOMStructure.RUN;
+                               END;
+                                }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=Cost Shares;
+                      ToolTipML=ENU=View how the costs of underlying items in the BOM roll up to the parent item. The information is organized according to the BOM structure to reflect at which levels the individual costs apply. Each item level can be collapsed or expanded to obtain an overview or detailed view.;
+                      ApplicationArea=#Advanced;
+                      Image=CostBudget;
+                      OnAction=VAR
+                                 BOMCostShares@1000 : Page 5872;
+                               BEGIN
+                                 BOMCostShares.InitItem(Rec);
+                                 BOMCostShares.RUN;
+                               END;
+                                }
+      { 49      ;2   ;ActionGroup;
+                      CaptionML=ENU=Assemb&ly;
+                      Image=AssemblyBOM }
+      { 48      ;3   ;Action    ;
+                      Name=<Action32>;
+                      CaptionML=ENU=Assembly BOM;
+                      ToolTipML=ENU=View or edit the bill of material that specifies which items and resources are required to assemble the assembly item.;
+                      ApplicationArea=#Assembly;
+                      RunObject=Page 36;
+                      RunPageLink=Parent Item No.=FIELD(No.);
+                      Image=BOM }
+      { 47      ;3   ;Action    ;
+                      CaptionML=ENU=Where-Used;
+                      ToolTipML=ENU=View a list of BOMs in which the item is used.;
+                      ApplicationArea=#Assembly;
+                      RunObject=Page 37;
+                      RunPageView=SORTING(Type,No.);
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=Track }
+      { 46      ;3   ;Action    ;
+                      AccessByPermission=TableData 90=R;
+                      CaptionML=ENU=Calc. Stan&dard Cost;
+                      ToolTipML=ENU=Calculate the unit cost of the item by rolling up the unit cost of each component and resource in the item's assembly BOM or production BOM. The unit cost of a parent item must always equals the total of the unit costs of its components, subassemblies, and any resources.;
+                      ApplicationArea=#Assembly;
+                      Image=CalculateCost;
+                      OnAction=BEGIN
+                                 CalculateStdCost.CalcItem("No.",TRUE);
+                               END;
+                                }
+      { 44      ;3   ;Action    ;
+                      AccessByPermission=TableData 90=R;
+                      CaptionML=ENU=Calc. Unit Price;
+                      ToolTipML=ENU=Calculate the unit price based on the unit cost and the profit percentage.;
+                      ApplicationArea=#Assembly;
+                      Image=SuggestItemPrice;
+                      OnAction=BEGIN
+                                 CalculateStdCost.CalcAssemblyItemPrice("No.");
+                               END;
+                                }
+      { 41      ;2   ;ActionGroup;
+                      CaptionML=ENU=Production;
+                      Image=Production }
+      { 32      ;3   ;Action    ;
+                      CaptionML=ENU=Production BOM;
+                      ToolTipML=ENU=Open the item's production bill of material to view or edit its components.;
+                      ApplicationArea=#Manufacturing;
+                      RunObject=Page 99000786;
+                      RunPageLink=No.=FIELD(Production BOM No.);
+                      Image=BOM }
+      { 29      ;3   ;Action    ;
+                      AccessByPermission=TableData 90=R;
+                      CaptionML=ENU=Where-Used;
+                      ToolTipML=ENU=View a list of BOMs in which the item is used.;
+                      ApplicationArea=#Manufacturing;
+                      Image=Where-Used;
+                      OnAction=VAR
+                                 ProdBOMWhereUsed@1001 : Page 99000811;
+                               BEGIN
+                                 ProdBOMWhereUsed.SetItem(Rec,WORKDATE);
+                                 ProdBOMWhereUsed.RUNMODAL;
+                               END;
+                                }
+      { 24      ;3   ;Action    ;
+                      AccessByPermission=TableData 99000771=R;
+                      CaptionML=ENU=Calc. Stan&dard Cost;
+                      ToolTipML=ENU=Calculate the unit cost of the item by rolling up the unit cost of each component and resource in the item's assembly BOM or production BOM. The unit cost of a parent item must always equals the total of the unit costs of its components, subassemblies, and any resources.;
+                      ApplicationArea=#Manufacturing;
+                      Image=CalculateCost;
+                      OnAction=BEGIN
+                                 CalculateStdCost.CalcItem("No.",FALSE);
+                               END;
+                                }
+      { 7       ;3   ;Action    ;
+                      CaptionML=ENU=&Warehouse Entries;
+                      ToolTipML=ENU="View the history of quantities that are registered for the item in warehouse activities. ";
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 7318;
+                      RunPageView=SORTING(Item No.,Bin Code,Location Code,Variant Code,Unit of Measure Code,Lot No.,Serial No.,Entry Type,Dedicated);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=BinLedger }
+      { 85      ;2   ;ActionGroup;
+                      CaptionML=ENU=Statistics;
+                      Image=Statistics }
+      { 16      ;3   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      ToolTipML=ENU=View statistical information, such as the value of posted entries, for the record.;
+                      ApplicationArea=#Suite;
+                      Image=Statistics;
+                      OnAction=VAR
+                                 ItemStatistics@1001 : Page 5827;
+                               BEGIN
+                                 ItemStatistics.SetItem(Rec);
+                                 ItemStatistics.RUNMODAL;
+                               END;
+                                }
+      { 17      ;3   ;Action    ;
+                      CaptionML=ENU=Entry Statistics;
+                      ToolTipML=ENU=View statistics for item ledger entries.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 304;
+                      RunPageLink=No.=FIELD(No.),
+                                  Date Filter=FIELD(Date Filter),
+                                  Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                                  Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                                  Location Filter=FIELD(Location Filter),
+                                  Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                                  Variant Filter=FIELD(Variant Filter);
+                      Image=EntryStatistics }
+      { 22      ;3   ;Action    ;
+                      CaptionML=ENU=T&urnover;
+                      ToolTipML=ENU=View a detailed account of item turnover by periods after you have set the relevant filters for location and variant.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 158;
+                      RunPageLink=No.=FIELD(No.),
+                                  Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                                  Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                                  Location Filter=FIELD(Location Filter),
+                                  Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                                  Variant Filter=FIELD(Variant Filter);
+                      Image=Turnover }
+      { 15      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      ToolTipML=ENU=View or add comments for the record.;
+                      ApplicationArea=#Comments;
+                      RunObject=Page 124;
+                      RunPageLink=Table Name=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 33      ;1   ;ActionGroup;
+                      CaptionML=ENU=S&ales;
+                      Image=Sales }
+      { 36      ;2   ;Action    ;
+                      Name=Sales_Prices;
+                      CaptionML=ENU=Prices;
+                      ToolTipML=ENU=View or set up different prices for the item. An item price is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7002;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=Price }
+      { 34      ;2   ;Action    ;
+                      Name=Sales_LineDiscounts;
+                      CaptionML=ENU=Line Discounts;
+                      ToolTipML=ENU=View or set up different discounts for the item. An item discount is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7004;
+                      RunPageView=SORTING(Type,Code);
+                      RunPageLink=Type=CONST(Item),
+                                  Code=FIELD(No.);
+                      Image=LineDiscount }
+      { 124     ;2   ;Action    ;
+                      CaptionML=ENU=Prepa&yment Percentages;
+                      ToolTipML=ENU="View or edit the percentages of the price that can be paid as a prepayment. ";
+                      ApplicationArea=#Prepayments;
+                      RunObject=Page 664;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=PrepaymentPercentages }
+      { 37      ;2   ;Action    ;
+                      CaptionML=ENU=Orders;
+                      ToolTipML=ENU=View a list of ongoing orders for the item.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 48;
+                      RunPageView=SORTING(Document Type,Type,No.);
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=Document }
+      { 114     ;2   ;Action    ;
+                      CaptionML=ENU=Returns Orders;
+                      ToolTipML=ENU=View ongoing sales or purchase return orders for the item.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 6633;
+                      RunPageView=SORTING(Document Type,Type,No.);
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=ReturnOrder }
+      { 38      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Purchases;
+                      Image=Purchasing }
+      { 118     ;2   ;Action    ;
+                      CaptionML=ENU=Ven&dors;
+                      ToolTipML=ENU=View the list of vendors who can supply the item, and at which lead time.;
+                      ApplicationArea=#Planning;
+                      RunObject=Page 114;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=Vendor }
+      { 39      ;2   ;Action    ;
+                      CaptionML=ENU=Prices;
+                      ToolTipML=ENU=View or set up different prices for the item. An item price is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7012;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=Price }
+      { 42      ;2   ;Action    ;
+                      CaptionML=ENU=Line Discounts;
+                      ToolTipML=ENU=View or set up different discounts for the item. An item discount is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Advanced;
+                      RunObject=Page 7014;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=LineDiscount }
+      { 125     ;2   ;Action    ;
+                      CaptionML=ENU=Prepa&yment Percentages;
+                      ToolTipML=ENU="View or edit the percentages of the price that can be paid as a prepayment. ";
+                      ApplicationArea=#Prepayments;
+                      RunObject=Page 665;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=PrepaymentPercentages }
+      { 40      ;2   ;Action    ;
+                      CaptionML=ENU=Orders;
+                      ToolTipML=ENU=View a list of ongoing orders for the item.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 56;
+                      RunPageView=SORTING(Document Type,Type,No.);
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=Document }
+      { 115     ;2   ;Action    ;
+                      CaptionML=ENU=Return Orders;
+                      ToolTipML=ENU=Open the list of ongoing return orders for the item.;
+                      ApplicationArea=#SalesReturnOrder;
+                      RunObject=Page 6643;
+                      RunPageView=SORTING(Document Type,Type,No.);
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=ReturnOrder }
+      { 76      ;2   ;Action    ;
+                      CaptionML=ENU=Ca&talog Items;
+                      ToolTipML=ENU="View the list of items that you do not carry in inventory. ";
+                      ApplicationArea=#Basic,#Suite;
+                      RunObject=Page 5726;
+                      Image=NonStockItem }
+      { 146     ;1   ;ActionGroup;
+                      Name=PurchPricesandDiscounts;
+                      CaptionML=ENU=Special Purchase Prices & Discounts }
+      { 144     ;2   ;Action    ;
+                      CaptionML=ENU=Set Special Prices;
+                      ToolTipML=ENU=Set up different prices for the item. An item price is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 7012;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=Price }
+      { 143     ;2   ;Action    ;
+                      CaptionML=ENU=Set Special Discounts;
+                      ToolTipML=ENU=Set up different discounts for the item. An item discount is automatically granted on invoice lines when the specified criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Suite;
+                      RunObject=Page 7014;
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=LineDiscount }
+      { 107     ;2   ;Action    ;
+                      Name=PurchPricesDiscountsOverview;
+                      CaptionML=ENU=Special Prices & Discounts Overview;
+                      ToolTipML=ENU=View the special prices and line discounts that you grant for this item when certain criteria are met, such as vendor, quantity, or ending date.;
+                      ApplicationArea=#Suite;
+                      Image=PriceWorksheet;
+                      OnAction=VAR
+                                 PurchasesPriceAndLineDisc@1000 : Page 1346;
+                               BEGIN
+                                 PurchasesPriceAndLineDisc.LoadItem(Rec);
+                                 PurchasesPriceAndLineDisc.RUNMODAL;
+                               END;
+                                }
+      { 58      ;1   ;ActionGroup;
+                      CaptionML=ENU=Warehouse;
+                      Image=Warehouse }
+      { 116     ;2   ;Action    ;
+                      CaptionML=ENU=&Bin Contents;
+                      ToolTipML=ENU=View the quantities of the item in each bin where it exists. You can see all the important parameters relating to bin content, and you can modify certain bin content parameters in this window.;
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 7379;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=BinContent }
+      { 81      ;2   ;Action    ;
+                      CaptionML=ENU=Stockkeepin&g Units;
+                      ToolTipML=ENU="Open the item's SKUs to view or edit instances of the item at different locations or with different variants. ";
+                      ApplicationArea=#Warehouse;
+                      RunObject=Page 5701;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=SKU }
+      { 60      ;1   ;ActionGroup;
+                      CaptionML=ENU=Service;
+                      Image=ServiceItem }
+      { 103     ;2   ;Action    ;
+                      CaptionML=ENU=Ser&vice Items;
+                      ToolTipML=ENU="View instances of the item as service items, such as machines that you maintain or repair for customers through service orders. ";
+                      ApplicationArea=#Service;
+                      RunObject=Page 5988;
+                      RunPageView=SORTING(Item No.);
+                      RunPageLink=Item No.=FIELD(No.);
+                      Image=ServiceItem }
+      { 11      ;2   ;Action    ;
+                      AccessByPermission=TableData 5900=R;
+                      CaptionML=ENU=Troubleshooting;
+                      ToolTipML=ENU=View or edit information about technical problems with a service item.;
+                      ApplicationArea=#Service;
+                      Image=Troubleshoot;
+                      OnAction=VAR
+                                 TroubleshootingHeader@1000 : Record 5943;
+                               BEGIN
+                                 TroubleshootingHeader.ShowForItem(Rec);
+                               END;
+                                }
+      { 105     ;2   ;Action    ;
+                      CaptionML=ENU=Troubleshooting Setup;
+                      ToolTipML=ENU=View or edit your settings for troubleshooting service items.;
+                      ApplicationArea=#Service;
+                      RunObject=Page 5993;
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=Troubleshoot }
+      { 62      ;1   ;ActionGroup;
+                      CaptionML=ENU=Resources;
+                      Image=Resource }
+      { 108     ;2   ;Action    ;
+                      CaptionML=ENU=Resource &Skills;
+                      ToolTipML=ENU=View the assignment of skills to resources, items, service item groups, and service items. You can use skill codes to allocate skilled resources to service items or items that need special skills for servicing.;
+                      ApplicationArea=#Service;
+                      RunObject=Page 6019;
+                      RunPageLink=Type=CONST(Item),
+                                  No.=FIELD(No.);
+                      Image=ResourceSkills }
+      { 109     ;2   ;Action    ;
+                      AccessByPermission=TableData 5900=R;
+                      CaptionML=ENU=Skilled R&esources;
+                      ToolTipML=ENU=View a list of all registered resources with information about whether they have the skills required to service the particular service item group, item, or service item.;
+                      ApplicationArea=#Service;
+                      Image=ResourceSkills;
+                      OnAction=VAR
+                                 ResourceSkill@1001 : Record 5956;
+                               BEGIN
+                                 CLEAR(SkilledResourceList);
+                                 SkilledResourceList.Initialize(ResourceSkill.Type::Item,"No.",Description);
+                                 SkilledResourceList.RUNMODAL;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=Item;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the number of the item.;
+                ApplicationArea=#All;
+                SourceExpr="No." }
+
+    { 4   ;2   ;Field     ;
+                ToolTipML=ENU=Specifies a description of the item.;
+                ApplicationArea=#All;
+                SourceExpr=Description }
+
+    { 106 ;2   ;Field     ;
+                ToolTipML=ENU=Specifies if the item card represents a physical inventory unit (Inventory), a labor time unit (Service), or a physical unit that is not tracked in inventory (Non-Inventory).;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr=Type;
+                Visible=IsFoundationEnabled }
+
+    { 113 ;2   ;Field     ;
+                ToolTipML=ENU=Specifies how many units, such as pieces, boxes, or cans, of the item are in inventory.;
+                ApplicationArea=#Basic,#Suite,#Invoicing;
+                SourceExpr=Inventory;
+                HideValue=IsNonInventoriable }
+
+    { 95  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies that the item was created from a catalog item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Created From Nonstock Item";
+                Visible=FALSE }
+
+    { 97  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies that a substitute exists for this item.;
+                ApplicationArea=#Suite;
+                SourceExpr="Substitutes Exist" }
+
+    { 112 ;2   ;Field     ;
+                ToolTipML=ENU=Specifies that a stockkeeping unit exists for this item.;
+                ApplicationArea=#Warehouse;
+                SourceExpr="Stockkeeping Unit Exists";
+                Visible=FALSE }
+
+    { 8   ;2   ;Field     ;
+                AccessByPermission=TableData 90=R;
+                ToolTipML=ENU=Specifies if the item is an assembly BOM.;
+                ApplicationArea=#Assembly;
+                SourceExpr="Assembly BOM" }
+
+    { 99  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the number of the production BOM that the item represents.;
+                ApplicationArea=#Manufacturing;
+                SourceExpr="Production BOM No." }
+
+    { 101 ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the number of the production routing that the item is used in.;
+                ApplicationArea=#Manufacturing;
+                SourceExpr="Routing No." }
+
+    { 6   ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the base unit used to measure the item, such as piece, box, or pallet. The base unit of measure also serves as the conversion basis for alternate units of measure.;
+                ApplicationArea=#Basic,#Suite,#Invoicing;
+                SourceExpr="Base Unit of Measure" }
+
+    { 43  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies where to find the item in the warehouse. This is informational only.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Shelf No.";
+                Visible=FALSE }
+
+    { 45  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies how the item's cost flow is recorded and whether an actual or budgeted value is capitalized and used in the cost calculation.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Costing Method";
+                Visible=FALSE }
+
+    { 122 ;2   ;Field     ;
+                ToolTipML=ENU=Specifies whether the item's unit cost has been adjusted, either automatically or manually.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Cost is Adjusted" }
+
+    { 51  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the unit cost that is used as an estimation to be adjusted with variances later. It is typically used in assembly and production where costs can vary.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Standard Cost";
+                Visible=FALSE }
+
+    { 53  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the cost per unit of the item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Unit Cost" }
+
+    { 55  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the most recent direct unit cost that was paid for the item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Last Direct Cost";
+                Visible=FALSE }
+
+    { 57  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the relationship between the Unit Cost, Unit Price, and Profit Percentage fields associated with this item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Price/Profit Calculation";
+                Visible=FALSE }
+
+    { 59  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the profit margin that you want to sell the item at. You can enter a profit percentage manually or have it entered according to the Price/Profit Calculation field;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Profit %";
+                Visible=FALSE }
+
+    { 61  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the price for one unit of the item, in LCY.;
+                ApplicationArea=#Basic,#Suite,#Invoicing;
+                SourceExpr="Unit Price" }
+
+    { 63  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies links between business transactions made for the item and an inventory account in the general ledger, to group amounts for that item type.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Inventory Posting Group";
+                Visible=FALSE }
+
+    { 12  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the item's product type to link transactions made for this item with the appropriate general ledger account according to the general posting setup.;
+                ApplicationArea=#Suite;
+                SourceExpr="Gen. Prod. Posting Group";
+                Visible=FALSE }
+
+    { 74  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the VAT product posting group. Links business transactions made for the item, resource, or G/L account with the general ledger, to account for VAT amounts resulting from trade with that record.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="VAT Prod. Posting Group";
+                Visible=FALSE }
+
+    { 35  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies an item group code that can be used as a criterion to grant a discount when the item is sold to a certain customer.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Item Disc. Group";
+                Visible=FALSE }
+
+    { 65  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the vendor code of who supplies this item by default.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Vendor No." }
+
+    { 67  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the number that the vendor uses for this item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Vendor Item No.";
+                Visible=FALSE }
+
+    { 69  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies a code for the item's tariff number.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Tariff No.";
+                Visible=FALSE }
+
+    { 71  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies a search description that you use to find the item in lists.;
+                ApplicationArea=#Advanced;
+                SourceExpr="Search Description" }
+
+    { 91  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the item's indirect cost as an absolute amount.;
+                ApplicationArea=#Manufacturing;
+                SourceExpr="Overhead Rate";
+                Visible=FALSE }
+
+    { 89  ;2   ;Field     ;
+                ToolTipML=ENU=Specifies the percentage of the item's last purchase cost that includes indirect costs, such as freight that is associated with the purchase of the item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Indirect Cost %";
+                Visible=FALSE }
+
+    { 1102601000;2;Field  ;
+                ToolTipML=ENU=Specifies the category that the item belongs to. Item categories also contain any assigned item attributes.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Item Category Code";
+                Visible=FALSE }
+
+    { 1102601004;2;Field  ;
+                ToolTipML=ENU=Specifies that transactions with the item cannot be posted, for example, because the item is in quarantine.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr=Blocked;
+                Visible=FALSE }
+
+    { 1102601006;2;Field  ;
+                ToolTipML=ENU=Specifies when the item card was last modified.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Last Date Modified";
+                Visible=FALSE }
+
+    { 1102601010;2;Field  ;
+                ToolTipML=ENU=Specifies the unit of measure code used when you sell the item.;
+                ApplicationArea=#Suite;
+                SourceExpr="Sales Unit of Measure";
+                Visible=FALSE }
+
+    { 1102601012;2;Field  ;
+                ToolTipML=ENU=Specifies the type of supply order created by the planning system when the item needs to be replenished.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Replenishment System";
+                Visible=FALSE }
+
+    { 1102601016;2;Field  ;
+                ToolTipML=ENU=Specifies the unit of measure code used when you purchase the item.;
+                ApplicationArea=#Suite;
+                SourceExpr="Purch. Unit of Measure";
+                Visible=FALSE }
+
+    { 1102601018;2;Field  ;
+                ToolTipML=ENU=Specifies a date formula for the amount of time it takes to replenish the item.;
+                ApplicationArea=#Basic,#Suite;
+                SourceExpr="Lead Time Calculation";
+                Visible=FALSE }
+
+    { 1102601020;2;Field  ;
+                ToolTipML=ENU=Specifies if additional orders for any related components are calculated.;
+                ApplicationArea=#Manufacturing;
+                SourceExpr="Manufacturing Policy";
+                Visible=FALSE }
+
+    { 1102601024;2;Field  ;
+                ToolTipML=ENU=Specifies how consumption of the item (component) is calculated and handled in production processes. Manual: Enter and post consumption in the consumption journal manually. Forward: Automatically posts consumption according to the production order component lines when the first operation starts. Backward: Automatically calculates and posts consumption according to the production order component lines when the production order is finished. Pick + Forward / Pick + Backward: Variations with warehousing.;
+                ApplicationArea=#Manufacturing;
+                SourceExpr="Flushing Method";
+                Visible=FALSE }
+
+    { 9   ;2   ;Field     ;
+                ToolTipML=ENU=Specifies which default order flow is used to supply this assembly item.;
+                ApplicationArea=#Assembly;
+                SourceExpr="Assembly Policy";
+                Visible=FALSE }
+
+    { 1102601026;2;Field  ;
+                ToolTipML=ENU=Specifies how items are tracked in the supply chain.;
+                ApplicationArea=#ItemTracking;
+                SourceExpr="Item Tracking Code";
+                Visible=FALSE }
+
+    { 31  ;2   ;Field     ;
+                CaptionML=ENU=Default Deferral Template;
+                ToolTipML=ENU=Specifies the default template that governs how to defer revenues and expenses to the periods when they occurred.;
+                ApplicationArea=#Suite;
+                SourceExpr="Default Deferral Template Code";
+                Importance=Additional }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 140 ;1   ;Part      ;
+                Name=Power BI Report FactBox;
+                CaptionML=ENU=Power BI Reports;
+                ApplicationArea=#Basic,#Suite;
+                PagePartID=Page6306;
+                Visible=PowerBIVisible;
+                PartType=Page }
+
+    { 3   ;1   ;Part      ;
+                ApplicationArea=#All;
+                SubPageLink=Source Type=CONST(Item),
+                            Source No.=FIELD(No.);
+                PagePartID=Page875;
+                Visible=SocialListeningVisible;
+                PartType=Page }
+
+    { 26  ;1   ;Part      ;
+                ApplicationArea=#All;
+                SubPageLink=Source Type=CONST(Item),
+                            Source No.=FIELD(No.);
+                PagePartID=Page876;
+                Visible=SocialListeningSetupVisible;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 1901314507;1;Part   ;
+                ApplicationArea=#Basic,#Suite;
+                SubPageLink=No.=FIELD(No.),
+                            Date Filter=FIELD(Date Filter),
+                            Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                            Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                            Location Filter=FIELD(Location Filter),
+                            Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                            Bin Filter=FIELD(Bin Filter),
+                            Variant Filter=FIELD(Variant Filter),
+                            Lot No. Filter=FIELD(Lot No. Filter),
+                            Serial No. Filter=FIELD(Serial No. Filter);
+                PagePartID=Page9089;
+                PartType=Page }
+
+    { 1903326807;1;Part   ;
+                ApplicationArea=#Basic,#Suite;
+                SubPageLink=No.=FIELD(No.),
+                            Date Filter=FIELD(Date Filter),
+                            Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                            Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                            Location Filter=FIELD(Location Filter),
+                            Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                            Bin Filter=FIELD(Bin Filter),
+                            Variant Filter=FIELD(Variant Filter),
+                            Lot No. Filter=FIELD(Lot No. Filter),
+                            Serial No. Filter=FIELD(Serial No. Filter);
+                PagePartID=Page9090;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 1906840407;1;Part   ;
+                ApplicationArea=#Basic,#Suite;
+                SubPageLink=No.=FIELD(No.),
+                            Date Filter=FIELD(Date Filter),
+                            Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                            Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                            Location Filter=FIELD(Location Filter),
+                            Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                            Bin Filter=FIELD(Bin Filter),
+                            Variant Filter=FIELD(Variant Filter),
+                            Lot No. Filter=FIELD(Lot No. Filter),
+                            Serial No. Filter=FIELD(Serial No. Filter);
+                PagePartID=Page9091;
+                PartType=Page }
+
+    { 1901796907;1;Part   ;
+                ApplicationArea=#Basic,#Suite;
+                SubPageLink=No.=FIELD(No.),
+                            Date Filter=FIELD(Date Filter),
+                            Global Dimension 1 Filter=FIELD(Global Dimension 1 Filter),
+                            Global Dimension 2 Filter=FIELD(Global Dimension 2 Filter),
+                            Location Filter=FIELD(Location Filter),
+                            Drop Shipment Filter=FIELD(Drop Shipment Filter),
+                            Bin Filter=FIELD(Bin Filter),
+                            Variant Filter=FIELD(Variant Filter),
+                            Lot No. Filter=FIELD(Lot No. Filter),
+                            Serial No. Filter=FIELD(Serial No. Filter);
+                PagePartID=Page9109;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 136 ;1   ;Part      ;
+                Name=ItemAttributesFactBox;
+                ApplicationArea=#Basic,#Suite;
+                PagePartID=Page9110;
+                PartType=Page }
+
+    { 1900383207;1;Part   ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      TempFilterItemAttributesBuffer@1014 : TEMPORARY Record 7506;
+      TempItemFilteredFromAttributes@1022 : TEMPORARY Record 27;
+      TempItemFilteredFromPickItem@1025 : TEMPORARY Record 27;
+      ApplicationAreaMgmtFacade@1015 : Codeunit 9179;
+      CalculateStdCost@1018 : Codeunit 5812;
+      ItemAvailFormsMgt@1000 : Codeunit 353;
+      ApprovalsMgmt@1016 : Codeunit 1535;
+      ClientTypeManagement@1024 : Codeunit 4;
+      SkilledResourceList@1013 : Page 6023;
+      IsFoundationEnabled@1012 : Boolean;
+      SocialListeningSetupVisible@1011 : Boolean INDATASET;
+      SocialListeningVisible@1010 : Boolean INDATASET;
+      CRMIntegrationEnabled@1009 : Boolean;
+      CRMIsCoupledToRecord@1008 : Boolean;
+      OpenApprovalEntriesExist@1007 : Boolean;
+      EnabledApprovalWorkflowsExist@1004 : Boolean;
+      CanCancelApprovalForRecord@1003 : Boolean;
+      IsOnPhone@1002 : Boolean;
+      RunOnTempRec@1027 : Boolean;
+      EventFilter@1001 : Text;
+      PowerBIVisible@1017 : Boolean;
+      CanRequestApprovalForFlow@1019 : Boolean;
+      CanCancelApprovalForFlow@1023 : Boolean;
+      IsNonInventoriable@1006 : Boolean INDATASET;
+      IsInventoriable@1005 : Boolean INDATASET;
+      RunOnPickItem@1026 : Boolean;
+      TextRunOnTempRec@1020 : TextConst 'ENU="RunOnTempRec=True, ALF "';
+
+    [External]
+    PROCEDURE SelectActiveItems@180() : Text;
+    VAR
+      Item@1001 : Record 27;
+    BEGIN
+      EXIT(SelectInItemList(Item));
+    END;
+
+    [External]
+    PROCEDURE SelectActiveItemsForSale@10() : Text;
+    VAR
+      Item@1001 : Record 27;
+    BEGIN
+      Item.SETRANGE("Sales Blocked",FALSE);
+      EXIT(SelectInItemList(Item));
+    END;
+
+    [External]
+    PROCEDURE SelectActiveItemsForPurchase@11() : Text;
+    VAR
+      Item@1001 : Record 27;
+    BEGIN
+      Item.SETRANGE("Purchasing Blocked",FALSE);
+      EXIT(SelectInItemList(Item));
+    END;
+
+    LOCAL PROCEDURE SelectInItemList@6(VAR Item@1000 : Record 27) : Text;
+    VAR
+      ItemListPage@1001 : Page 31;
+    BEGIN
+      Item.SETRANGE(Blocked,FALSE);
+      ItemListPage.SETTABLEVIEW(Item);
+      ItemListPage.LOOKUPMODE(TRUE);
+      IF ItemListPage.RUNMODAL = ACTION::LookupOK THEN
+        EXIT(ItemListPage.GetSelectionFilter);
+    END;
+
+    [External]
+    PROCEDURE GetSelectionFilter@3() : Text;
+    VAR
+      Item@1001 : Record 27;
+      SelectionFilterManagement@1002 : Codeunit 46;
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(Item);
+      EXIT(SelectionFilterManagement.GetSelectionFilterForItem(Item));
+    END;
+
+    [External]
+    PROCEDURE SetSelection@1(VAR Item@1000 : Record 27);
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(Item);
+    END;
+
+    LOCAL PROCEDURE EnableControls@4();
+    BEGIN
+      IsNonInventoriable := IsNonInventoriableType;
+      IsInventoriable := IsInventoriableType;
+    END;
+
+    LOCAL PROCEDURE SetWorkflowManagementEnabledState@9();
+    VAR
+      WorkflowManagement@1001 : Codeunit 1501;
+      WorkflowEventHandling@1000 : Codeunit 1520;
+    BEGIN
+      EventFilter := WorkflowEventHandling.RunWorkflowOnSendItemForApprovalCode + '|' +
+        WorkflowEventHandling.RunWorkflowOnItemChangedCode;
+
+      EnabledApprovalWorkflowsExist := WorkflowManagement.EnabledWorkflowExist(DATABASE::Item,EventFilter);
+    END;
+
+    LOCAL PROCEDURE ClearAttributesFilter@5();
+    BEGIN
+      CLEARMARKS;
+      MARKEDONLY(FALSE);
+      TempFilterItemAttributesBuffer.RESET;
+      TempFilterItemAttributesBuffer.DELETEALL;
+      FILTERGROUP(0);
+      SETRANGE("No.");
+    END;
+
+    [External]
+    PROCEDURE SetTempFilteredItemRec@7(VAR Item@1000 : Record 27);
+    BEGIN
+      TempItemFilteredFromAttributes.RESET;
+      TempItemFilteredFromAttributes.DELETEALL;
+
+      TempItemFilteredFromPickItem.RESET;
+      TempItemFilteredFromPickItem.DELETEALL;
+
+      RunOnTempRec := TRUE;
+      RunOnPickItem := TRUE;
+
+      IF Item.FINDSET THEN
+        REPEAT
+          TempItemFilteredFromAttributes := Item;
+          TempItemFilteredFromAttributes.INSERT;
+          TempItemFilteredFromPickItem := Item;
+          TempItemFilteredFromPickItem.INSERT;
+        UNTIL Item.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE RestoreTempItemFilteredFromAttributes@13();
+    BEGIN
+      IF NOT RunOnPickItem THEN
+        EXIT;
+
+      TempItemFilteredFromAttributes.RESET;
+      TempItemFilteredFromAttributes.DELETEALL;
+      RunOnTempRec := TRUE;
+
+      IF TempItemFilteredFromPickItem.FINDSET THEN
+        REPEAT
+          TempItemFilteredFromAttributes := TempItemFilteredFromPickItem;
+          TempItemFilteredFromAttributes.INSERT;
+        UNTIL TempItemFilteredFromPickItem.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
