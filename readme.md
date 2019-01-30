@@ -19,7 +19,7 @@ Some key pictures from Visual Code:
 
 App pictures -
 
-Add new Item attribute - Colletion:
+Add new Item attribute - Collection:
 
 ![](media/ALFUpdateItemAttributes03.png)
 
