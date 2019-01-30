@@ -3,6 +3,30 @@
   <file datatype="xml" source-language="en-US" target-language="en-US" original="Please update this value">
     <body>
       <group id="body">
+        <trans-unit id="Report 2089969766 - Control 4180507426 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Copy From Item</source>
+          <target>Copy From Item</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - Control CopyFromItem - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Report 2089969766 - Control 3315693684 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Copy To Items</source>
+          <target>Copy To Items</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - Control CopyToItems - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Report 2089969766 - Control 3315693684 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>This report should be run from (filtered) "Item List": Attributes \ ALF Batch Update Item Attributes.</source>
+          <target>This report should be run from (filtered) "Item List": Attributes \ ALF Batch Update Item Attributes.</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - Control CopyToItems - Property ToolTip</note>
+        </trans-unit>
+        <trans-unit id="Report 2089969766 - Control 1386553727 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Number Items</source>
+          <target>Number Items</target>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Report ALF_Batch_Update_Item_Attribut - Control NumberItems - Property Caption</note>
+        </trans-unit>
         <trans-unit id="Report 2089969766 - NamedType 2214306770" size-unit="char" translate="yes" xml:space="preserve">
           <source>Copy From Item should not be empty.</source>
           <target>Copy From Item should not be empty.</target>

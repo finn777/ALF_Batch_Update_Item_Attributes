@@ -34,7 +34,5 @@ pageextension 60201 ALF_Batch_Update_Item_Attribut extends "Item List"
 
     }   
  
-//var
-//    MyItem: Record "Item";
 
 }

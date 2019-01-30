@@ -46,6 +46,7 @@ report 60201 ALF_Batch_Update_Item_Attribut
                 field(CopyFromItem;CopyFromItem)
                 {
                     ApplicationArea = All;
+                    Caption = 'Copy From Item';
 
                     trigger OnLookup(var Text: Text): Boolean
                     begin
@@ -63,11 +64,14 @@ report 60201 ALF_Batch_Update_Item_Attribut
                 field(CopyToItems;CopyToItems)
                 {
                     ApplicationArea = All;
+                    Caption = 'Copy To Items';
                     Editable = false;
+                    ToolTip = 'This report should be run from (filtered) "Item List": Attributes \ ALF Batch Update Item Attributes.';
                 }
                 field(NumberItems;NumberItems)
                 {
                     ApplicationArea = All;
+                    Caption = 'Number Items';
                     Editable = false;
                 }
             }

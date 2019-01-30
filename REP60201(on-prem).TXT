@@ -2,8 +2,8 @@ OBJECT Report 60201 ALF_Batch_Update_Item_Attribut
 {
   OBJECT-PROPERTIES
   {
-    Date=29.01.19;
-    Time=10:02:29;
+    Date=30.01.19;
+    Time=[ 9:29:33];
     Modified=Yes;
     Version List=;
   }
@@ -74,6 +74,7 @@ OBJECT Report 60201 ALF_Batch_Update_Item_Attribut
 
       { 2   ;1   ;Field     ;
                   Name=CopyFromItem;
+                  CaptionML=ENU=Copy From Item;
                   ApplicationArea=#All;
                   SourceExpr=CopyFromItem;
                   OnValidate=BEGIN
@@ -90,12 +91,15 @@ OBJECT Report 60201 ALF_Batch_Update_Item_Attribut
 
       { 3   ;1   ;Field     ;
                   Name=CopyToItems;
+                  CaptionML=ENU=Copy To Items;
+                  ToolTipML=ENU=This report should be run from (filtered) "Item List": Attributes \ ALF Batch Update Item Attributes.;
                   ApplicationArea=#All;
                   SourceExpr=CopyToItems;
                   Editable=false }
 
       { 4   ;1   ;Field     ;
                   Name=NumberItems;
+                  CaptionML=ENU=Number Items;
                   ApplicationArea=#All;
                   SourceExpr=NumberItems;
                   Editable=false }

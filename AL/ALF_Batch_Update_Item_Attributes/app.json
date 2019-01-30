@@ -4,7 +4,7 @@
   "publisher": "Alexey Finogenov",
   "brief": "",
   "description": "ALF Batch Update Item Attributes - small feature that allow to update items attributes. Source: the existed item. Destination: filtered 'Item List'. New option add to 'Item List'. The extension does not support RunOnTempRec.",
-  "version": "3.0.190129.0",
+  "version": "3.0.190130.0",
   "privacyStatement": "",
   "EULA": "",
   "help": "https://github.com/finn777/ALF_Batch_Update_Item_Attributes/blob/master/readme.md",
